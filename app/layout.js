@@ -1,9 +1,9 @@
-
-import {Inter} from "next/font/google"
-const inter = Inter({subsets:["latin"]});
+import { Inter } from "next/font/google";
+const inter = Inter({ subsets: ["latin"] });
 import "./globals.css";
 import Header from "@/components/Header";
-
+import { ConvexClientProvider } from "@/components/ConvexClientProvider";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata = {
   title: "baps expense",
@@ -16,13 +16,13 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="icon" href="/logos/logo-s.png" sizes="any" />
       </head>
-      <body
-        className={`${inter.className} antialiased`}
-      >
-      <Header />
-        <main className="min-h-screen">
-          {children}
-        </main>
+      <body className={`${inter.className} antialiased`}>
+      <ClerkProvider>
+      <ConvexClientProvider>
+        <Header />
+        <main className="min-h-screen">{children}</main>
+        </ConvexClientProvider>
+        </ClerkProvider>
       </body>
     </html>
   );
