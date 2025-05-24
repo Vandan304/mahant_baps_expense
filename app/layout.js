@@ -1,13 +1,14 @@
 import { Inter } from "next/font/google";
 const inter = Inter({ subsets: ["latin"] });
+
 import "./globals.css";
-import Header from "@/components/Header";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { ClerkProvider } from "@clerk/nextjs";
+import HeaderWrapper from "./HeaderWrapper"; // ✅ Use client component wrapper
 
 export const metadata = {
   title: "baps expense",
-  description: "The smartest way to split expense with freinds",
+  description: "The smartest way to split expense with friends",
 };
 
 export default function RootLayout({ children }) {
@@ -17,11 +18,11 @@ export default function RootLayout({ children }) {
         <link rel="icon" href="/logos/logo-s.png" sizes="any" />
       </head>
       <body className={`${inter.className} antialiased`}>
-      <ClerkProvider>
-      <ConvexClientProvider>
-        <Header />
-        <main className="min-h-screen">{children}</main>
-        </ConvexClientProvider>
+        <ClerkProvider>
+          <ConvexClientProvider>
+            <HeaderWrapper /> {/* ✅ This is client-side now */}
+            <main className="min-h-screen">{children}</main>
+          </ConvexClientProvider>
         </ClerkProvider>
       </body>
     </html>

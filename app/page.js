@@ -1,6 +1,6 @@
 export default function Home() {
   return (
-    <div className="bg-black text-white">
+    <div className="pt-16">
       jsgib
     </div>
   );
