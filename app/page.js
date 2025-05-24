@@ -1,4 +1,8 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -12,9 +16,44 @@ export default function Home() {
             The smartest way to split expenses with friends
           </h1>
           <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl/relaxed">
-            Track shared expenses,split bills effortlessly , and settle up quickly.
-            Never worry about who ows who again.
+            Track shared expenses,split bills effortlessly , and settle up
+            quickly. Never worry about who ows who again.
           </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button
+              asChild
+              size="lg"
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Link href="/dashboard">
+                Get Started
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="border-green-600 text-green-600 hover:bg-green-50"
+            >
+              <Link href="#how-it-works">
+                See How it works
+                {/* <ArrowRight className="ml-2 h-4 w-4" /> */}
+              </Link>
+            </Button>
+          </div>
+        </div>
+        <div className="container mx-auto max-w-5xl overflow-hidden rounded-xl shadow-xl">
+          <div className="gradient p-1 aspect-[16/9]">
+            <Image
+              src="/hero.png"
+              width={1280}
+              height={720}
+              alt="banner"
+              className="rounded-lg mx-auto"
+              priority
+            />
+          </div>
         </div>
       </section>
     </div>
