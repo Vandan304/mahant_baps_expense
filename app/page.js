@@ -146,8 +146,8 @@ export default function Home() {
                         <AvatarFallback>{name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="text-left">
-                          <p className="text-sm font-medium">{name}</p>
-                          <p className="text-sm text-muted-foreground">{role}</p>
+                        <p className="text-sm font-medium">{name}</p>
+                        <p className="text-sm text-muted-foreground">{role}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -157,6 +157,32 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <section className="py-20 gradient">
+        <div className="container mx-auto px-4 md:px-6 text-center space-y-6">
+          <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl text-white">
+            Ready To Simplify expense shanring?
+          </h2>
+          <p className="mx-auto max-w-[600px] text-green-100 md:text-xl/relaxed">
+            Join thoundsands of users who made spliting expenses stress-free
+          </p>
+          <Button
+              asChild
+              size="lg"
+              className="bg-green-800 hover:opacity-90"
+            >
+              <Link href="/dashboard">
+                Get Started
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+        </div>
+      </section>
+
+
+      <footer className="border-t bg-gray-50 py-12 text-center text-sm text-muted-foreground">
+            Made with bapsspliter
+      </footer>
     </div>
   );
 }
