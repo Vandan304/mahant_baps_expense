@@ -12,7 +12,7 @@ export default defineSchema({
     .index("by_email", ["email"])
     .searchIndex("search_name", { searchField: "name" })
     .searchIndex("search_email", { searchField: "email" }),
-  expense: defineTable({
+  expenses: defineTable({
     description: v.string(),
     amount: v.number(),
     category: v.optional(v.string()),
