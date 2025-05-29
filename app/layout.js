@@ -5,6 +5,7 @@ import "./globals.css";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { ClerkProvider } from "@clerk/nextjs";
 import HeaderWrapper from "./HeaderWrapper"; // ✅ Use client component wrapper
+import { Toaster } from "sonner";
 
 export const metadata = {
   title: "baps expense",
@@ -21,7 +22,10 @@ export default function RootLayout({ children }) {
         <ClerkProvider>
           <ConvexClientProvider>
             <HeaderWrapper /> {/* ✅ This is client-side now */}
-            <main className="min-h-screen">{children}</main>
+            <main className="min-h-screen">
+              {children}
+              <Toaster richColors/>
+            </main>
           </ConvexClientProvider>
         </ClerkProvider>
       </body>

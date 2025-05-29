@@ -6,7 +6,7 @@ import React from "react";
 const MainLayout = ({ children }) => {
   return (
     <Authenticated>
-      <div className="container mx-auto mt-24 mb-20">{children}</div>
+      <div className="container mx-auto m-4 mt-24 mb-20">{children}</div>
     </Authenticated>
   );
 };
