@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,12 +12,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { err } from "inngest/types";
 import { Textarea } from "@/components/ui/textarea";
 import { useConvexQuery } from "@/hooks/use-convex-query";
 import { api } from "@/convex/_generated/api";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { query } from "@/convex/_generated/server";
 const groupSchema = z.object({
   name: z.string().min(1, "Group name is required"),
   description: z.string().optional(),
@@ -28,7 +28,7 @@ const CreateGroupModal = ({ isOpen, onClose, onSuccess }) => {
   const [commandOpen, setCommandOpen] = useState(false);
   const { data: currentUser } = useConvexQuery(api.users.getCurrentUser);
   const { data: searchResults, isLoading: isSearching } = useConvexQuery(
-    api.users.searchUsers
+    api.users.searchUsers,{query:searchQuery}
   );
   const {
     register,
