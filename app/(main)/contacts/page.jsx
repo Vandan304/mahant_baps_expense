@@ -9,10 +9,13 @@ import { Plus, User, Users } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 import { BarLoader } from "react-spinners";
+import CreateGroupModal from "./_components/create-group-modal";
+import { useRouter } from "next/navigation";
 
 const ContactsPage = () => {
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const { data, isLoading } = useConvexQuery(api.contacts.getAllContacts);
+  const router = useRouter();
 
   if (isLoading) {
     return (
@@ -50,7 +53,7 @@ const ContactsPage = () => {
           ) : (
             <div className="flex flex-col gap-4">
               {users.map((user) => (
-                <Link href={`/person/${user.id}`} key={user.id} >
+                <Link href={`/person/${user.id}`} key={user.id}>
                   <Card className="hover:bg-muted/30 transition-colors cursor-pointer">
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">
@@ -102,7 +105,7 @@ const ContactsPage = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="bg-primary/10 p-2 rounded-md">
-                            <Users className="h-6 w-6 text-primary"/>
+                            <Users className="h-6 w-6 text-primary" />
                           </div>
 
                           <div>
@@ -121,6 +124,11 @@ const ContactsPage = () => {
           )}
         </div>
       </div>
+      <CreateGroupModal
+        isOpen={isCreateGroupModalOpen}
+        onClose={() => setIsCreateGroupModalOpen(false)}
+        onSuccess={(groupId) => router.push(`/groups/${groupId}`)}
+      />
     </div>
   );
 };
