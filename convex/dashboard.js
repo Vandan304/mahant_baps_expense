@@ -73,3 +73,75 @@ export const getUserBalances = query({
     };
   },
 });
+
+export const getTotalSpent = query({
+  handler: async (ctx) => {
+    const user = await ctx.runQuery(internal.users.getCurrentUser);
+
+    const currentYear = new Date().getFullYear();
+    const startOfYear = new Date(currentYear, 0, 1).getTime();
+
+    const expenses = await ctx.db
+      .query("expenses")
+      .withIndex("by_date", (q) => q.gte("date", startOfYear));
+
+    const userExpenses = expenses.filter(
+      (expenses) =>
+        expenses.paidByUserId === user._id ||
+        expenses.splits.some((split) => split.userId === user._id)
+    );
+    let totalSpent = 0;
+    userExpenses.forEach((expenses) => {
+      const userSplit = expenses.splits.find(
+        (split) => split.userId === user._id
+      );
+      if (userSplit) {
+        totalSpent += userSplit.amount;
+      }
+    });
+    return totalSpent;
+  },
+});
+
+export const getMonthlySpending = query({
+  handler: async (ctx) => {
+    const user = await ctx.runQuery(internal.users.getCurrentUser);
+    const currentYear = new Date().getFullYear();
+    const startOfYear = new Date(currentYear, 0, 1).getTime();
+    const allExpenses = await ctx.db
+      .query("expenses")
+      .withIndex("by_date", (q) => q.gte("date", startOfYear))
+      .collect();
+    const userExpenses = expenses.filter(
+      (expenses) =>
+        expenses.paidByUserId === user._id ||
+        expenses.splits.some((split) => split.userId === user._id)
+    );
+    const mothlyTotal = {};
+    for (let i = 0; i < 12; ++i) {
+      const monthDate = new Date(currentYear, i, 1);
+      mothlyTotal[monthDate.getTime()] = 0;
+    }
+    userExpenses.forEach((expense) => {
+      const date = new Date(expense.date);
+      const monthlyStart = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        1
+      ).getTime();
+      const userSplit = expense.splits.find(
+        (split) => split.userId === user._id
+      );
+      if (userSplit) {
+        mothlyTotal[monthlyStart] =
+          (mothlyTotal[monthlyStart] || 0) + userSplit.amount;
+      }
+    });
+    const result = Object.entries(mothlyTotal).map(([month, total]) => ({
+      month: parseInt(month),
+      total,
+    }));
+    result.sort((a, b) => a.month - b.month);
+    return result;
+  },
+});
