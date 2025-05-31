@@ -1,7 +1,8 @@
 import { v } from "convex/values";
-import { internalQuery, mutation, query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
+// Mutation to store or update user info based on auth identity
 export const store = mutation({
   args: {},
   handler: async (ctx) => {
@@ -33,11 +34,12 @@ export const store = mutation({
   },
 });
 
-export const getCurrentUser = internalQuery({
+// Public query to get the current authenticated user info
+export const getCurrentUser = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Not authenticate");
+      throw new Error("Not authenticated");
     }
     const user = await ctx.db
       .query("users")
@@ -52,29 +54,36 @@ export const getCurrentUser = internalQuery({
   },
 });
 
+// Search users by name or email, excluding the current user
 export const searchUsers = query({
   args: {
     query: v.string(),
   },
   handler: async (ctx, args) => {
-    const currentUser = await ctx.runQuery(internal.users.getCurrentUser);
     if (args.query.length < 2) {
       return [];
     }
+
+    // Since getCurrentUser is public, call it via ctx.runQuery with function reference
+    const currentUser = await ctx.runQuery(internal.users.getCurrentUser);
+
     const nameResults = await ctx.db
       .query("users")
       .withSearchIndex("search_name", (q) => q.search("name", args.query))
       .collect();
+
     const emailResults = await ctx.db
       .query("users")
       .withSearchIndex("search_email", (q) => q.search("email", args.query))
       .collect();
+
     const users = [
       ...nameResults,
       ...emailResults.filter(
         (email) => !nameResults.some((name) => name._id === email._id)
       ),
     ];
+
     return users
       .filter((user) => user._id !== currentUser._id)
       .map((user) => ({
