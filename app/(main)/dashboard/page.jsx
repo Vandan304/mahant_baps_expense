@@ -14,7 +14,7 @@ const DashboardPage = () => {
   const { data: monthlySpending, isLoading: monthlySpendingLoading } = useConvexQuery(
     api.dashboard.getTotalSpent
   );
-  return <div>dashboardpage</div>;
+  return <div>dashboard</div>;
 };
 
 export default DashboardPage;
