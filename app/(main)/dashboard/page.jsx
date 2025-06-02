@@ -11,10 +11,13 @@ import {
 } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
 import { useConvexQuery } from "@/hooks/use-convex-query";
-import { PlusCircle } from "lucide-react";
+import { ChevronRight, PlusCircle, Users } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 import { BarLoader } from "react-spinners";
+import ExpenseSummary from "./components/expense-summary";
+import BalanceSummary from "./components/balance-summary";
+import GroupList from "./components/group-list";
 
 const DashboardPage = () => {
   const { data: balances, isLoading: balancesLoading } = useConvexQuery(
@@ -72,11 +75,14 @@ const DashboardPage = () => {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {balances?.totalBalance>0 ? "You are owed money": balances?.totalBalance<0 ?"You owe money":"All settled up!"}
+                  {balances?.totalBalance > 0
+                    ? "You are owed money"
+                    : balances?.totalBalance < 0
+                      ? "You owe money"
+                      : "All settled up!"}
                 </p>
               </CardContent>
             </Card>
-
 
             <Card>
               <CardHeader className="pb-2">
@@ -85,9 +91,100 @@ const DashboardPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600"></div>
+                {balances ? (
+                  <>
+                    <div className="text-2xl font-bold text-green-600">
+                      ${balances?.youAreOwed.toFixed(2)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      From {balances?.oweDetails?.youAreOwedBy?.length || 0}{" "}
+                      people
+                    </p>
+                  </>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    Loading...
+                  </div>
+                )}
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  You owe
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {balances?.oweDetails?.youOwe?.length > 0 ? (
+                  <>
+                    <div className="text-2xl font-bold text-red-600">
+                      ${balances?.youOwe.toFixed(2)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      To ${balances?.oweDetails?.youOwe?.length || 0} people
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">$0.00</div>
+                    <p className="text-xs text-muted-foreground">
+                      You don't owe anyone
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* left */}
+            <div className="lg:col-span-2 space-y-6">
+              <ExpenseSummary
+                monthlySpending={monthlySpending}
+                totalSpent={totalSpent}
+              />
+            </div>
+            {/* right */}
+            <div className="space-y-6">
+              {/* balance */}
+              <Card>
+                <CardHeader className="pb-3 flex justify-between items-center">
+                  <CardTitle>Balance Details</CardTitle>
+                  <Button variant="link" asChild className="p-0">
+                    <Link href="/contacts">
+                      View All
+                      <ChevronRight className="ml-1 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <BalanceSummary balances={balances}/>
+                </CardContent>
+              </Card>
+              {/* groups */}
+              <Card>
+                <CardHeader className="pb-3 flex justify-between items-center">
+                  <CardTitle>Your Group</CardTitle>
+                  <Button variant="link" asChild className="p-0">
+                    <Link href="/contacts">
+                      View All
+                      <ChevronRight className="ml-1 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <GroupList groups={groups}/>
+                </CardContent>
+                <CardFooter>
+                  <Button variant="outline" asChild className="w-full">
+                    <Link href="/contacts?createGroup=true">
+                      <Users className="mr-2 h-4 w-4" />
+                      Create New Group
+                    </Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
           </div>
         </>
       )}
