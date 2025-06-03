@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowUpCircle } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 
@@ -46,14 +46,14 @@ const BalanceSummary = ({ balances }) => {
         </div>
       )}
 
-      {hasOwed && (
+      {hasOwing && (
         <div>
           <h3 className="text-sm font-medium flex items-center mb-3 ">
-            <ArrowUpCircle className="h-4 w-4 text-green-500 mr-2" />
-            Owed to you
+            <ArrowDownCircle className="h-4 w-4 text-red-500 mr-2" />
+            You owe
           </h3>
           <div className="space-y-3">
-            {oweDetails.youAreOwedBy.map((item) => (
+            {oweDetails.youOwe.map((item) => (
               <Link
                 key={item.userId}
                 href={`/person/${item.userId}`}

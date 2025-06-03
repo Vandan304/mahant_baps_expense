@@ -114,48 +114,70 @@ export const getTotalSpent = query({
 export const getMonthlySpending = query({
   handler: async (ctx) => {
     const user = await ctx.runQuery(internal.users.getCurrentUser);
+
+    if (!user) {
+      return [];
+    }
+
+    // Get current year and start timestamp
     const currentYear = new Date().getFullYear();
     const startOfYear = new Date(currentYear, 0, 1).getTime();
+
+    // Fetch expenses from DB using the index "by_date" on date field
     const allExpenses = await ctx.db
       .query("expenses")
       .withIndex("by_date", (q) => q.gte("date", startOfYear))
       .collect();
 
-    const userExpenses = allExpenses.filter(
-      (expense) =>
-        expense.paidByUserId === user._id ||
-        (Array.isArray(expense.splits) &&
-          expense.splits.some((split) => split.userId === user._id))
-    );
+    // Filter for expenses involving current user
+    const userExpenses = allExpenses.filter((expense) => {
+      if (!expense) return false;
+      if (expense.paidByUserId === user._id) return true;
+      if (!Array.isArray(expense.splits)) return false;
+      return expense.splits.some((split) => split.userId === user._id);
+    });
 
-    const mothlyTotal = {};
-    for (let i = 0; i < 12; ++i) {
+    // Initialize monthly totals for all months of the year to zero
+    const monthlyTotals = {};
+    for (let i = 0; i < 12; i++) {
       const monthDate = new Date(currentYear, i, 1);
-      mothlyTotal[monthDate.getTime()] = 0;
+      monthlyTotals[monthDate.getTime()] = 0;
     }
+
+    // Sum user's share for each expense by month
     userExpenses.forEach((expense) => {
+      if (!expense.date) return; // skip invalid dates
+
       const date = new Date(expense.date);
-      const monthlyStart = new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        1
-      ).getTime();
-      const userSplit = Array.isArray(expense.splits)
-        ? expense.splits.find((split) => split.userId === user._id)
-        : null;
-      if (userSplit) {
-        mothlyTotal[monthlyStart] =
-          (mothlyTotal[monthlyStart] || 0) + userSplit.amount;
+      if (date.getFullYear() !== currentYear) return; // only current year
+
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+
+      // Find the user's split for this expense
+      const userSplit = expense.splits.find((split) => split.userId === user._id);
+
+      if (userSplit && typeof userSplit.amount === "number") {
+        monthlyTotals[monthStart] = (monthlyTotals[monthStart] || 0) + userSplit.amount;
+      } else if (expense.paidByUserId === user._id && typeof expense.amount === "number") {
+        // If user paid the whole expense (no split found), add full amount
+        monthlyTotals[monthStart] = (monthlyTotals[monthStart] || 0) + expense.amount;
       }
     });
-    const result = Object.entries(mothlyTotal).map(([month, total]) => ({
-      month: parseInt(month),
-      total,
-    }));
-    result.sort((a, b) => a.month - b.month);
+
+    // Convert monthlyTotals object to sorted array
+    const result = Object.entries(monthlyTotals)
+      .map(([month, total]) => ({
+        month: parseInt(month),
+        total,
+      }))
+      .sort((a, b) => a.month - b.month);
+
     return result;
   },
 });
+
+
+
 
 export const getUserGroups = query({
   handler: async (ctx) => {

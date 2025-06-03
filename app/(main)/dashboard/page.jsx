@@ -37,7 +37,7 @@ const DashboardPage = () => {
     totalSpentLoading ||
     monthlySpendingLoading;
   return (
-    <div>
+    <div className="container mx-auto py-6 space-y-6">
       {isLoading ? (
         <div className="w-full py-12 flex justify-center">
           <BarLoader width={"100%"} color="#36d7b7" />
@@ -122,7 +122,7 @@ const DashboardPage = () => {
                       ${balances?.youOwe.toFixed(2)}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      To ${balances?.oweDetails?.youOwe?.length || 0} people
+                      To {balances?.oweDetails?.youOwe?.length || 0} people
                     </p>
                   </>
                 ) : (
