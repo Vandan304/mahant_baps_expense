@@ -9,7 +9,7 @@ export const getExpenseBetweenUsers = query({
     if (me._id === userId) {
       throw new Error("Cannot query yourself");
     }
-    const expensesYouPaid = await ctx.db
+    const myPaid = await ctx.db
       .query("expenses")
       .withIndex("by_user_and_group", (q) =>
         q.eq("paidByUserId", me.id).eq("groupId", undefined)
@@ -18,8 +18,19 @@ export const getExpenseBetweenUsers = query({
     const theirPaid = await ctx.db
       .query("expenses")
       .withIndex("by_user_and_group", (q) =>
-        q.eq("paidByUserId", me._id).eq("groupId", undefined)
+        q.eq("paidByUserId", userId).eq("groupId", undefined)
       )
       .collect();
+    const candidateExpenses = [...myPaid, ...theirPaid];
+
+    const expenses = candidateExpenses.filter((e) => {
+      const meInSplits = e.splits.some((s) => s.userId === me._id);
+      const themInSplits = e.splits.some((s) => s.userId === userId);
+
+      const meInvolved = e.paidByUserId === me._id || meInSplits;
+      const themInvolved = e.paidByUserId === userId || themInSplits;
+
+      return meInvolved && themInvolved
+    });
   },
 });
