@@ -30,7 +30,7 @@ const DashboardPage = () => {
     api.dashboard.getTotalSpent
   );
   const { data: monthlySpending, isLoading: monthlySpendingLoading } =
-    useConvexQuery(api.dashboard.getTotalSpent);
+    useConvexQuery(api.dashboard.getMonthlySpending);
   const isLoading =
     balancesLoading ||
     groupsLoading ||
@@ -139,10 +139,10 @@ const DashboardPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* left */}
             <div className="lg:col-span-2 space-y-6">
-              <ExpenseSummary
+             <ExpenseSummary
                 monthlySpending={monthlySpending}
                 totalSpent={totalSpent}
-              />
+              /> 
             </div>
             {/* right */}
             <div className="space-y-6">
