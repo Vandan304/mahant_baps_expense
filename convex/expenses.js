@@ -56,8 +56,41 @@ export const getExpenseBetweenUsers = query({
 
     // running balamce
     let balance = 0;
-    for await (const e of expenses){
-      
+    for await (const e of expenses) {
+      if (e.paidByUserId === me._id) {
+        const split = e.splits.find((s) => s.userId === userId && !s.paid);
+        if (split) {
+          balance += split.amount;
+        } else {
+          const split = e.splits.find((s) => s.userId === me._id && !s.paid);
+          if (split) {
+            balance -= split.amount;
+          }
+        }
+      }
     }
+    for (const s of settlements) {
+      if (s.paidByUserId === me._id) {
+        balance += s.amount;
+      } else {
+        balance -= s.amount;
+      }
+    }
+    // return payload
+    const other = await ctx.db.get(userId);
+    if (!other) {
+      throw new Error("User not found");
+    }
+    return {
+      expenses,
+      settlements,
+      otherUser: {
+        id: other._id,
+        name: other.name,
+        email: other.email,
+        imageUrl: other.imageUrl,
+      },
+      balance,
+    };
   },
 });
