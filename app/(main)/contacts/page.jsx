@@ -19,19 +19,13 @@ export default function ContactsPage() {
 
   const { data, isLoading } = useConvexQuery(api.contacts.getAllContacts);
 
-  // Check for the createGroup parameter when the component mounts
   useEffect(() => {
     const createGroupParam = searchParams.get("createGroup");
 
     if (createGroupParam === "true") {
-      // Open the modal
       setIsCreateGroupModalOpen(true);
-
-      // Remove the parameter from the URL
       const url = new URL(window.location.href);
       url.searchParams.delete("createGroup");
-
-      // Replace the current URL without the parameter
       router.replace(url.pathname + url.search);
     }
   }, [searchParams, router]);
@@ -71,8 +65,8 @@ export default function ContactsPage() {
             </Card>
           ) : (
             <div className="flex flex-col gap-4">
-              {users.map((user) => (
-                <Link key={user.id} href={`/person/${user.id}`}>
+              {users.map((user, index) => (
+                <Link key={user.id || `user-${index}`} href={`/person/${user.id}`}>
                   <Card className="hover:bg-muted/30 transition-colors cursor-pointer">
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">
@@ -80,7 +74,7 @@ export default function ContactsPage() {
                           <Avatar className="h-10 w-10">
                             <AvatarImage src={user.imageUrl} />
                             <AvatarFallback>
-                              {user.name.charAt(0)}
+                              {user.name?.charAt(0) || "?"}
                             </AvatarFallback>
                           </Avatar>
                           <div>
@@ -113,8 +107,8 @@ export default function ContactsPage() {
             </Card>
           ) : (
             <div className="flex flex-col gap-4">
-              {groups.map((group) => (
-                <Link key={group.id} href={`/groups/${group.id}`}>
+              {groups.map((group, index) => (
+                <Link key={group.id || `group-${index}`} href={`/groups/${group.id}`}>
                   <Card className="hover:bg-muted/30 transition-colors cursor-pointer">
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">

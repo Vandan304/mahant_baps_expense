@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 export const getGroupExpenses = query({
   args: { groupId: v.id("groups") },
@@ -78,5 +79,38 @@ export const getGroupExpenses = query({
         .map((other) => ({ from: other, amount: ledger[other][m.id] })),
     }));
     const userLookupMap = {};
+    memberDetails.forEach((member) => {
+      userLookupMap[member.id] = member;
+    });
+    return {
+      group: {
+        id: group._id,
+        name: group.name,
+        description: group.description,
+      },
+      members: memberDetails,
+      expenses,
+      settlements,
+      balances,
+      userLookupMap,
+    };
+  },
+});
+
+export const deleteExpense = mutation({
+  args: {
+    expenseId: v.id("expenses"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.runQuery(internal.users.getCurrentUser);
+    const expense = await ctx.db.get(args.expenseId);
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+    if (expense.createdBy !== user._id && expense.paidByUserId !== user._id) {
+      throw new Error("You dont have permission to delete this expense");
+    }
+    await ctx.db.delete(args.expenseId);
+    return { success: true };
   },
 });
