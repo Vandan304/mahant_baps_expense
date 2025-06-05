@@ -66,7 +66,7 @@ export default function ContactsPage() {
           ) : (
             <div className="flex flex-col gap-4">
               {users.map((user, index) => (
-                <Link key={user.id || `user-${index}`} href={`/person/${user.id}`}>
+                <Link key={user.id || `user-${index}`} href={`/person/${user._id}`}>
                   <Card className="hover:bg-muted/30 transition-colors cursor-pointer">
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">
