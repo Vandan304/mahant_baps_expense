@@ -1,96 +1,185 @@
-import { v } from "convex/values";
-import { query } from "./_generated/server";
-import { internal } from "./_generated/api";
+"use client";
 
-export const getExpenseBetweenUsers = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
-    const me = await ctx.runQuery(internal.users.getCurrentUser);
-    if (me._id === userId) {
-      throw new Error("Cannot query yourself");
-    }
-    const myPaid = await ctx.db
-      .query("expenses")
-      .withIndex("by_user_and_group", (q) =>
-        q.eq("paidByUserId", me.id).eq("groupId", undefined)
-      )
-      .collect();
-    const theirPaid = await ctx.db
-      .query("expenses")
-      .withIndex("by_user_and_group", (q) =>
-        q.eq("paidByUserId", userId).eq("groupId", undefined)
-      )
-      .collect();
-    const candidateExpenses = [...myPaid, ...theirPaid];
+import { useConvexQuery, useConvexMutation } from "@/hooks/use-convex-query";
+import { api } from "@/convex/_generated/api";
+import { format } from "date-fns";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { getCategoryById, getCategoryIcon } from "@/lib/expense-categories";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
-    const expenses = candidateExpenses.filter((e) => {
-      const meInSplits = e.splits.some((s) => s.userId === me._id);
-      const themInSplits = e.splits.some((s) => s.userId === userId);
+const ExpenseList = ({
+  expenses,
+  showOtherPerson = true,
+  isGroupExpense = false,
+  otherPersonId = null,
+  userLookupMap = {},
+}) => {
+  const { data: currentUser } = useConvexQuery(api.users.getCurrentUser);
+  const deleteExpense = useConvexMutation(api.expenses.deleteExpense);
 
-      const meInvolved = e.paidByUserId === me._id || meInSplits;
-      const themInvolved = e.paidByUserId === userId || themInSplits;
+  if (!expenses || !expenses.length) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          No expenses found
+        </CardContent>
+      </Card>
+    );
+  }
 
-      return meInvolved && themInvolved;
-    });
-    expenses.sort((a, b) => b.date - a.date);
-    // settlement
-    const settlements = await ctx.db
-      .query("settlements")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("groupId"), undefined),
-          q.or(
-            q.and(
-              q.eq(q.field("paidByUserId"), me._id),
-              q.eq(q.field("receivedByUserId"), userId)
-            ),
-            q.and(
-              q.eq(q.field("paidByUserId"), userId),
-              q.eq(q.field("receivedByUserId"), me._id)
-            )
-          )
-        )
-      )
-      .collect();
-    settlements.sort((a, b) => b.date - a.date);
-
-    // running balamce
-    let balance = 0;
-    for await (const e of expenses) {
-      if (e.paidByUserId === me._id) {
-        const split = e.splits.find((s) => s.userId === userId && !s.paid);
-        if (split) {
-          balance += split.amount;
-        } else {
-          const split = e.splits.find((s) => s.userId === me._id && !s.paid);
-          if (split) {
-            balance -= split.amount;
-          }
-        }
-      }
-    }
-    for (const s of settlements) {
-      if (s.paidByUserId === me._id) {
-        balance += s.amount;
-      } else {
-        balance -= s.amount;
-      }
-    }
-    // return payload
-    const other = await ctx.db.get(userId);
-    if (!other) {
-      throw new Error("User not found");
-    }
+  const getUserDetails = (userId) => {
     return {
-      expenses,
-      settlements,
-      otherUser: {
-        id: other._id,
-        name: other.name,
-        email: other.email,
-        imageUrl: other.imageUrl,
-      },
-      balance,
+      name:
+        userId === currentUser?._id
+          ? "You"
+          : userLookupMap[userId]?.name || "Other User",
+      imageUrl: userLookupMap[userId]?.imageUrl || null,
+      id: userId,
     };
-  },
-});
+  };
+
+  const canDeleteExpense = (expense) => {
+    if (!currentUser) return false;
+    return (
+      expense.createdBy === currentUser._id ||
+      expense.paidByUserId === currentUser._id
+    );
+  };
+
+  const handleDeleteExpense = async (expense) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this expense? This action cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteExpense.mutate({ expenseId: expense._id });
+      toast.success("Expense deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete expense: " + error.message);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {expenses.map((expense) => {
+        const payer = getUserDetails(expense.paidByUserId);
+        const isCurrentUserPayer =
+          String(expense.paidByUserId) === String(currentUser?._id);
+        const category = getCategoryById(expense.category);
+        const CategoryIcon = getCategoryIcon(category.id);
+        const showDeleteOption = canDeleteExpense(expense);
+
+        return (
+          <Card
+            className="hover:bg-muted/30 transition-colors"
+            key={expense._id}
+          >
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-full">
+                    <CategoryIcon className="h-5 w-5 text-primary" />
+                  </div>
+
+                  <div>
+                    <h3 className="font-medium">{expense.description}</h3>
+                    <div className="flex items-center text-sm text-muted-foreground gap-2">
+                      <span>
+                        {format(new Date(expense.date), "MMM d, yyyy")}
+                      </span>
+                      {showOtherPerson && (
+                        <>
+                          <span>•</span>
+                          <span>{payer.name} paid</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <div className="font-medium">
+                      ${expense.amount.toFixed(2)}
+                    </div>
+                    {isGroupExpense ? (
+                      <Badge variant="outline" className="mt-1">
+                        Group expense
+                      </Badge>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        {isCurrentUserPayer ? (
+                          <span className="text-green-600">You paid</span>
+                        ) : (
+                          <span className="text-red-600">
+                            {payer.name} paid
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {showDeleteOption && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full text-red-500 hover:text-red-700 hover:bg-red-100"
+                      onClick={() => handleDeleteExpense(expense)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">Delete expense</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-3 text-sm">
+                <div className="flex gap-2 flex-wrap">
+                  {expense.splits.map((split, idx) => {
+                    const splitUser = getUserDetails(split.userId);
+                    const isCurrentUser =
+                      String(split.userId) === String(currentUser?._id);
+
+                    const shouldShow =
+                      showOtherPerson ||
+                      (!showOtherPerson &&
+                        (split.userId === currentUser?._id ||
+                          split.userId === otherPersonId));
+
+                    if (!shouldShow) return null;
+
+                    return (
+                      <Badge
+                        key={idx}
+                        variant={split.paid ? "outline" : "secondary"}
+                        className="flex items-center gap-1"
+                      >
+                        <Avatar className="h-4 w-4">
+                          <AvatarImage src={splitUser.imageUrl} />
+                          <AvatarFallback>
+                            {splitUser.name?.charAt(0) || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>
+                          {isCurrentUser ? "You" : splitUser.name}: $
+                          {split.amount.toFixed(2)}
+                        </span>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+};
+
+export default ExpenseList;
