@@ -1,13 +1,17 @@
-import React from "react";
+"use client";
+import { api } from "@/convex/_generated/api";
+import { useConvexQuery } from "@/hooks/use-convex-query";
+import { useParams, useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { BarLoader } from "react-spinners";
 
 const GroupPage = () => {
   const params = useParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("expenses");
-  const { data, isLoading } = useConvexQuery(
-    api.expenses.getExpenseBetweenUsers,
-    { userId: params?.id }
-  );
+  const { data, isLoading } = useConvexQuery(api.groups.getGroupExpenses, {
+    groupId: params.id,
+  });
   if (isLoading) {
     return (
       <div className="container mx-auto py-12">
@@ -15,10 +19,13 @@ const GroupPage = () => {
       </div>
     );
   }
-  const otherUser = data?.otherUser;
+
+  const group = data?.group;
+  const members = data?.members || [];
   const expenses = data?.expenses || [];
   const settlements = data?.settlements || [];
-  const balance = data?.balance || 0;
+  const balances = data?.balances || [];
+  const userLookupMap = data?.userLookupMap || {};
   return <div></div>;
 };
 

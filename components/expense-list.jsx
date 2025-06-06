@@ -80,15 +80,16 @@ const ExpenseList = ({
             key={expense._id}
           >
             <CardContent className="py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                {/* Left side: Icon and description */}
+                <div className="flex items-start gap-3">
                   <div className="bg-primary/10 p-2 rounded-full">
                     <CategoryIcon className="h-5 w-5 text-primary" />
                   </div>
 
                   <div>
-                    <h3 className="font-medium">{expense.description}</h3>
-                    <div className="flex items-center text-sm text-muted-foreground gap-2">
+                    <h3 className="font-medium break-words">{expense.description}</h3>
+                    <div className="flex flex-wrap items-center text-sm text-muted-foreground gap-2">
                       <span>
                         {expense.date
                           ? format(new Date(expense.date), "MMM d, yyyy")
@@ -106,8 +107,9 @@ const ExpenseList = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
+                {/* Right side: Amount and actions */}
+                <div className="flex items-start md:items-center gap-2 flex-col md:flex-row md:gap-4">
+                  <div className="text-right md:text-left">
                     <div className="font-medium">
                       ${Number(expense.amount || 0).toFixed(2)}
                     </div>
@@ -169,7 +171,7 @@ const ExpenseList = ({
                             {splitUser.name?.charAt(0) || "?"}
                           </AvatarFallback>
                         </Avatar>
-                        <span>
+                        <span className="whitespace-nowrap">
                           {isCurrentUser ? "You" : splitUser.name}: $
                           {Number(split.amount || 0).toFixed(2)}
                         </span>
