@@ -61,7 +61,7 @@ const PersonPage = () => {
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <h1 className="text-2xl sm:text-4xl font-semibold truncate">
+              <h1 className="text-4xl gradient-title">
                 {otherUser?.name}
               </h1>
               <p className="text-muted-foreground break-words text-sm">
