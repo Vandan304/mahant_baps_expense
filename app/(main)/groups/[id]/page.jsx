@@ -1,5 +1,7 @@
 "use client";
 import ExpenseList from "@/components/expense-list";
+import GroupBalances from "@/components/group-balances";
+import GroupMembers from "@/components/group-members";
 import SettlementsList from "@/components/settlements-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,20 +85,20 @@ const GroupPage = () => {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl">Members</CardTitle>
+              <CardTitle className="text-xl">Group Balances</CardTitle>
             </CardHeader>
             <CardContent>
-              <p>Members</p>
+              <GroupBalances balances={balances} />
             </CardContent>
           </Card>
         </div>
         <div>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl">Group Balances</CardTitle>
+              <CardTitle className="text-xl">Members</CardTitle>
             </CardHeader>
             <CardContent>
-              <p>Group Balances</p>
+              <GroupMembers members={members} />
             </CardContent>
           </Card>
         </div>
