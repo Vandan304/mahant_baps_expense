@@ -27,7 +27,11 @@ const GroupBalances = ({ balances }) => {
   const owingToMembers = me.owes
     .map(({ to, amount }) => ({ ...userMap[to], amount }))
     .sort((a, b) => b.amount - a.amount);
-  return <div></div>;
+  return <div className="space-y-4">
+      <div>
+        <p className="text-sm text-muted-foreground mb-1">Your Balance</p>
+      </div>
+  </div>;
 };
 
 export default GroupBalances;
