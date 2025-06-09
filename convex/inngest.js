@@ -91,10 +91,19 @@ export const getUserWithOutstandingDebts = query({
             userId: counterId,
             name: counter?.name ?? "Unknown",
             amount,
-            since,  
+            since,
           });
         }
       }
+      if (debts.length) {
+        result.push({
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          debts,
+        });
+      }
     }
+    return result;
   },
 });
