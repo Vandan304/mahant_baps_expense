@@ -107,3 +107,37 @@ export const getUserWithOutstandingDebts = query({
     return result;
   },
 });
+
+export const getUserWithExpenses = query({
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    const result = [];
+    const now = new Date();
+    oneMonthAgo.setMonth(now.getMonth() - 1);
+    const monthStart = oneMonthAgo.getTime();
+    for (const user of users) {
+      const paidExpenses = await ctx.db
+        .query("expenses")
+        .withIndex("by_date", (q) => q.gte("date", monthStart))
+        .filter((q) => q.eq(q.field("paidByUserId"), user._id))
+        .collect();
+
+      const allRecentExpenses = await ctx.db
+        .query("expenses")
+        .withIndex("by_date", (q) => q.gte("date", monthStart))
+        .collect();
+      const splitExpenses = allRecentExpenses.filter((expense) =>
+        expense.splits.some((split) => split.userId === user._id)
+      );
+      const userExpenses = [...new Set([...paidExpenses, ...splitExpenses])];
+      if (userExpenses.length > 0) {
+        result.push({
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+        });
+      }
+    }
+    return result;
+  },
+});
