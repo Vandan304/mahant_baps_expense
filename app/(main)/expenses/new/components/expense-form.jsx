@@ -1,6 +1,7 @@
 "use client";
 import { api } from "@/convex/_generated/api";
 import { useConvexMutation, useConvexQuery } from "@/hooks/use-convex-query";
+import { getAllCategories } from "@/lib/expense-categories";
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -26,6 +27,7 @@ const ExpenseForm = ({ type, onSuccess }) => {
   const [splits, setSplits] = useState([]);
   const { data: currentUser } = useConvexQuery(api.users.getCurrentUser);
   const createExpense = useConvexMutation(api.expenses.createExpense);
+  const categories = getAllCategories();
 
   const {
     register,
@@ -47,7 +49,17 @@ const ExpenseForm = ({ type, onSuccess }) => {
     },
   });
 
-  return <div></div>;
+  const amountValue = watch("amount");
+  const paidByUserId = watch("paidByUserId");
+  const onSubmit = async (data) => {};
+  if (!currentUser) {
+    return null;
+  }
+  return <form className="space-y-6" onSubmit={handleSubmit(onsubmit)}>
+    <div>
+      <div></div>
+    </div>
+  </form>;
 };
 
 export default ExpenseForm;
