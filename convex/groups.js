@@ -73,7 +73,7 @@ export const getGroupExpenses = query({
           return;
         }
         const diff = ledger[a][b] - ledger[b][a];
-        if (diff>0) {
+        if (diff > 0) {
           ledger[a][b] = diff;
           ledger[b][a] = 0;
         } else if (diff < 0) {
@@ -129,5 +129,66 @@ export const deleteExpense = mutation({
     }
     await ctx.db.delete(args.expenseId);
     return { success: true };
+  },
+});
+
+export const getGroupOrMembers = query({
+  args: {
+    groupId: v.optional(v.id("groups")),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.runQuery(internal.users.getCurrentUser);
+    const allGroups = await ctx.db.query("groups").collect();
+    const userGroups = allGroups.filter((group) =>
+      group.members.some((member) => member.userId === currentUser._id)
+    );
+    if (args.groupId) {
+      const selectedGroup = userGroups.find(
+        (group) => group._id === args.groupId
+      );
+      if (!selectedGroup) {
+        throw new Error("Group not found or you're not a member");
+      }
+      const memberDetails = await Promise.all(
+        selectedGroup.members.map(async (member) => {
+          const user = await ctx.db.get(member.userId);
+          if (!user) {
+            return null;
+          }
+          return {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            imageUrl: user.imageUrl,
+            role: member.role,
+          };
+        })
+      );
+      const validMembers = memberDetails.filter((member) => member != null);
+      return {
+        selectedGroup: {
+          id: selectedGroup._id,
+          name: selectedGroup.name,
+          description: selectedGroup.description,
+          createdBy: selectedGroup.createdBy,
+          members: validMembers,
+        },
+        groups: userGroups.map((group) => ({
+          id: group._id,
+          name: group.name,
+          description: group.description,
+          memberCount: group.members.length,
+        })),
+      };
+    } else {
+      return {
+        groups: userGroups.map((group) => ({
+          id: group._id,
+          name: group.name,
+          description: group.description,
+          memberCount: group.members.length,
+        })),
+      };
+    }
   },
 });
