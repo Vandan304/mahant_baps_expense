@@ -1,7 +1,6 @@
 "use client";
 import { api } from "@/convex/_generated/api";
 import { useConvexMutation, useConvexQuery } from "@/hooks/use-convex-query";
-import { currentUser } from "@clerk/nextjs/dist/types/server";
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -14,7 +13,7 @@ const expenseSchema = z.object({
     .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
       message: "Amount must be a positive number",
     }),
-  category: a.string().optional(),
+  category: z.string().optional(),
   date: z.date(),
   paidByUserId: z.string().min(1, "Payer is requried"),
   splitType: z.enum(["equal", "percentage", "exact"]),
