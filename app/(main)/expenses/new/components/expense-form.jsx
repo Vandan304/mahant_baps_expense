@@ -152,7 +152,17 @@ const ExpenseForm = ({ type, onSuccess }) => {
         {type == "group" && (
           <div className="space-y-2">
             <Label>Group</Label>
-            <GroupSelector />
+            <GroupSelector
+              onChange={(group) => {
+                if (!selectedGroup || selectedGroup.id !== group.id) {
+                  setSelectedGroup(group);
+                  setValue("groupId", group.id);
+                  if (group.members && Array.isArray(group.members)) {
+                    setParticipants(group.members);
+                  }
+                }
+              }}
+            />
             {!selectedGroup && (
               <p className="text-xs text-amber-600">
                 Please select a group to continue
