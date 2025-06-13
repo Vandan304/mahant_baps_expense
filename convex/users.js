@@ -60,23 +60,27 @@ export const searchUsers = query({
     query: v.string(),
   },
   handler: async (ctx, args) => {
+    // Use centralized getCurrentUser function
+    const currentUser = await ctx.runQuery(internal.users.getCurrentUser);
+
+    // Don't search if query is too short
     if (args.query.length < 2) {
       return [];
     }
 
-    // Since getCurrentUser is public, call it via ctx.runQuery with function reference
-    const currentUser = await ctx.runQuery(internal.users.getCurrentUser);
-
+    // Search by name using search index
     const nameResults = await ctx.db
       .query("users")
       .withSearchIndex("search_name", (q) => q.search("name", args.query))
       .collect();
 
+    // Search by email using search index
     const emailResults = await ctx.db
       .query("users")
       .withSearchIndex("search_email", (q) => q.search("email", args.query))
       .collect();
 
+    // Combine results (removing duplicates)
     const users = [
       ...nameResults,
       ...emailResults.filter(
@@ -84,6 +88,7 @@ export const searchUsers = query({
       ),
     ];
 
+    // Exclude current user and format results
     return users
       .filter((user) => user._id !== currentUser._id)
       .map((user) => ({

@@ -1,4 +1,5 @@
 "use client";
+
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import CategorySelector from "./category-selector";
@@ -23,6 +24,7 @@ import GroupSelector from "./group-selector";
 import ParticipantSelector from "./participant-selector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SplitSelector from "./split-selector";
+
 const expenseSchema = z.object({
   description: z.string().min(1, "Description is required"),
   amount: z
@@ -33,15 +35,17 @@ const expenseSchema = z.object({
     }),
   category: z.string().optional(),
   date: z.date(),
-  paidByUserId: z.string().min(1, "Payer is requried"),
+  paidByUserId: z.string().min(1, "Payer is required"),
   splitType: z.enum(["equal", "percentage", "exact"]),
   groupId: z.string().optional(),
 });
+
 const ExpenseForm = ({ type, onSuccess }) => {
   const [participants, setParticipants] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [splits, setSplits] = useState([]);
+
   const { data: currentUser } = useConvexQuery(api.users.getCurrentUser);
   const createExpense = useConvexMutation(api.expenses.createExpense);
   const categories = getAllCategories();
@@ -60,7 +64,7 @@ const ExpenseForm = ({ type, onSuccess }) => {
       amount: "",
       category: "",
       date: new Date(),
-      paidByUserId: currentUser?._id || "",
+      paidByUserId: "",
       splitType: "equal",
       groupId: undefined,
     },
@@ -68,19 +72,54 @@ const ExpenseForm = ({ type, onSuccess }) => {
 
   const amountValue = watch("amount");
   const paidByUserId = watch("paidByUserId");
-  const onSubmit = async (data) => {};
-  if (!currentUser) {
-    return null;
-  }
+
+  // When a user is added or removed, update the participant list
+  useEffect(() => {
+    if (participants.length === 0 && currentUser) {
+      // Always add the current user as a participant
+      setParticipants([
+        {
+          id: currentUser._id,
+          name: currentUser.name,
+          email: currentUser.email,
+          imageUrl: currentUser.imageUrl,
+        },
+      ]);
+    }
+  }, [currentUser, participants]);
+
+  const onSubmit = async (data) => {
+    try {
+      await createExpense({
+        ...data,
+        amount: parseFloat(data.amount),
+        participants,
+        splits,
+      });
+
+      reset();
+      setParticipants([]);
+      setSplits([]);
+      setSelectedGroup(null);
+      setSelectedDate(new Date());
+
+      if (onSuccess) onSuccess();
+    } catch (err) {
+      console.error("Error creating expense:", err);
+    }
+  };
+
+  if (!currentUser) return null;
+
   return (
-    <form className="space-y-6" onSubmit={handleSubmit(onsubmit)}>
+    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Input
               id="description"
-              placeholder="Lunch,movie tickets ,etc.."
+              placeholder="Lunch, movie tickets, etc..."
               {...register("description")}
             />
             {errors.description && (
@@ -89,6 +128,7 @@ const ExpenseForm = ({ type, onSuccess }) => {
               </p>
             )}
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="amount">Amount</Label>
             <Input
@@ -104,18 +144,18 @@ const ExpenseForm = ({ type, onSuccess }) => {
             )}
           </div>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
             <CategorySelector
               categories={categories || []}
               onChange={(categoryId) => {
-                if (categoryId) {
-                  setValue("category", categoryId);
-                }
+                if (categoryId) setValue("category", categoryId);
               }}
             />
           </div>
+
           <div className="space-y-2">
             <Label>Date</Label>
             <Popover>
@@ -128,11 +168,7 @@ const ExpenseForm = ({ type, onSuccess }) => {
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? (
-                    format(selectedDate, "PPP")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
+                  {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
@@ -149,7 +185,8 @@ const ExpenseForm = ({ type, onSuccess }) => {
             </Popover>
           </div>
         </div>
-        {type == "group" && (
+
+        {type === "group" && (
           <div className="space-y-2">
             <Label>Group</Label>
             <GroupSelector
@@ -157,8 +194,14 @@ const ExpenseForm = ({ type, onSuccess }) => {
                 if (!selectedGroup || selectedGroup.id !== group.id) {
                   setSelectedGroup(group);
                   setValue("groupId", group.id);
-                  if (group.members && Array.isArray(group.members)) {
+                  if (Array.isArray(group.members)) {
                     setParticipants(group.members);
+                    const payerInGroup = group.members.find(
+                      (m) => m.id === currentUser._id
+                    );
+                    if (payerInGroup) {
+                      setValue("paidByUserId", currentUser._id);
+                    }
                   }
                 }
               }}
@@ -170,10 +213,22 @@ const ExpenseForm = ({ type, onSuccess }) => {
             )}
           </div>
         )}
-        {type == "individual" && (
+
+        {type === "individual" && (
           <div className="space-y-2">
             <Label>Participants</Label>
-            <ParticipantSelector />
+            <ParticipantSelector
+              participants={participants}
+              onParticipantsChange={(newParticipants) => {
+                setParticipants(newParticipants);
+                if (
+                  !newParticipants.find((p) => p.id === paidByUserId) &&
+                  currentUser
+                ) {
+                  setValue("paidByUserId", currentUser._id);
+                }
+              }}
+            />
             {participants.length <= 1 && (
               <p className="text-xs text-amber-600">
                 Please add at least one other participant
@@ -181,9 +236,13 @@ const ExpenseForm = ({ type, onSuccess }) => {
             )}
           </div>
         )}
+
         <div className="space-y-2">
           <Label>Paid By</Label>
-          <select {...register("paidByUserId")}>
+          <select
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            {...register("paidByUserId")}
+          >
             <option value="">Select who paid</option>
             {participants.map((participant) => (
               <option key={participant.id} value={participant.id}>
@@ -191,13 +250,13 @@ const ExpenseForm = ({ type, onSuccess }) => {
               </option>
             ))}
           </select>
-          <ParticipantSelector />
           {errors.paidByUserId && (
             <p className="text-sm text-red-500">
               {errors.paidByUserId.message}
             </p>
           )}
         </div>
+
         <div className="space-y-2">
           <Label>Split Type</Label>
           <Tabs
@@ -213,29 +272,30 @@ const ExpenseForm = ({ type, onSuccess }) => {
               <p className="text-sm text-muted-foreground">
                 Split equally among all participants
               </p>
-              <SplitSelector />
+              <SplitSelector onSplitsChange={setSplits} />
             </TabsContent>
             <TabsContent value="percentage" className="pt-4">
               <p className="text-sm text-muted-foreground">
                 Split by percentage
               </p>
-              <SplitSelector />
+              <SplitSelector onSplitsChange={setSplits} />
             </TabsContent>
             <TabsContent value="exact" className="pt-4">
               <p className="text-sm text-muted-foreground">
                 Enter exact amounts
               </p>
-              <SplitSelector />
+              <SplitSelector onSplitsChange={setSplits} />
             </TabsContent>
           </Tabs>
         </div>
       </div>
+
       <div className="flex justify-end">
         <Button
           type="submit"
           disabled={isSubmitting || participants.length <= 1}
         >
-          {isSubmitting ? "Creating...." : "Create Expense"}
+          {isSubmitting ? "Creating..." : "Create Expense"}
         </Button>
       </div>
     </form>
