@@ -1,30 +1,36 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { api } from "@/convex/_generated/api";
+import { useConvexMutation, useConvexQuery } from "@/hooks/use-convex-query";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+// import { ParticipantSelector } from "./participant-selector";
+// import { GroupSelector } from "./group-selector";
+
+// import { SplitSelector } from "./split-selector";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { api } from "@/convex/_generated/api";
-import { useConvexMutation, useConvexQuery } from "@/hooks/use-convex-query";
-import { getAllCategories } from "@/lib/expense-categories";
 import { cn } from "@/lib/utils";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import React, { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { getAllCategories } from "@/lib/expense-categories";
 import CategorySelector from "./category-selector";
 import GroupSelector from "./group-selector";
 import ParticipantSelector from "./participant-selector";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SplitSelector from "./split-selector";
 
+// Form schema validation
 const expenseSchema = z.object({
   description: z.string().min(1, "Description is required"),
   amount: z
@@ -40,16 +46,19 @@ const expenseSchema = z.object({
   groupId: z.string().optional(),
 });
 
-const ExpenseForm = ({ type, onSuccess }) => {
+const ExpenseForm = ({ type = "individual", onSuccess }) => {
   const [participants, setParticipants] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [splits, setSplits] = useState([]);
 
+  // Mutations and queries
   const { data: currentUser } = useConvexQuery(api.users.getCurrentUser);
+
   const createExpense = useConvexMutation(api.expenses.createExpense);
   const categories = getAllCategories();
 
+  // Set up form with validation
   const {
     register,
     handleSubmit,
@@ -64,12 +73,13 @@ const ExpenseForm = ({ type, onSuccess }) => {
       amount: "",
       category: "",
       date: new Date(),
-      paidByUserId: "",
+      paidByUserId: currentUser?._id || "",
       splitType: "equal",
       groupId: undefined,
     },
   });
 
+  // Watch for changes
   const amountValue = watch("amount");
   const paidByUserId = watch("paidByUserId");
 
@@ -88,38 +98,73 @@ const ExpenseForm = ({ type, onSuccess }) => {
     }
   }, [currentUser, participants]);
 
+  // Handle form submission
   const onSubmit = async (data) => {
     try {
-      await createExpense({
-        ...data,
-        amount: parseFloat(data.amount),
-        participants,
-        splits,
+      const amount = parseFloat(data.amount);
+
+      // Prepare splits in the format expected by the API
+      const formattedSplits = splits.map((split) => ({
+        userId: split.userId,
+        amount: split.amount,
+        paid: split.userId === data.paidByUserId,
+      }));
+
+      // Validate that splits add up to the total (with small tolerance)
+      const totalSplitAmount = formattedSplits.reduce(
+        (sum, split) => sum + split.amount,
+        0
+      );
+      const tolerance = 0.01;
+
+      if (Math.abs(totalSplitAmount - amount) > tolerance) {
+        toast.error(
+          `Split amounts don't add up to the total. Please adjust your splits.`
+        );
+        return;
+      }
+
+      // For 1:1 expenses, set groupId to undefined instead of empty string
+      const groupId = type === "individual" ? undefined : data.groupId;
+
+      // Create the expense
+      await createExpense.mutate({
+        description: data.description,
+        amount: amount,
+        category: data.category || "Other",
+        date: data.date.getTime(), // Convert to timestamp
+        paidByUserId: data.paidByUserId,
+        splitType: data.splitType,
+        splits: formattedSplits,
+        groupId,
       });
 
-      reset();
-      setParticipants([]);
-      setSplits([]);
-      setSelectedGroup(null);
-      setSelectedDate(new Date());
+      toast.success("Expense created successfully!");
+      reset(); // Reset form
 
-      if (onSuccess) onSuccess();
-    } catch (err) {
-      console.error("Error creating expense:", err);
+      const otherParticipant = participants.find(
+        (p) => p.id !== currentUser._id
+      );
+      const otherUserId = otherParticipant?.id;
+
+      if (onSuccess) onSuccess(type === "individual" ? otherUserId : groupId);
+    } catch (error) {
+      toast.error("Failed to create expense: " + error.message);
     }
   };
 
   if (!currentUser) return null;
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-4">
+        {/* Description and amount */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Input
               id="description"
-              placeholder="Lunch, movie tickets, etc..."
+              placeholder="Lunch, movie tickets, etc."
               {...register("description")}
             />
             {errors.description && (
@@ -145,13 +190,17 @@ const ExpenseForm = ({ type, onSuccess }) => {
           </div>
         </div>
 
+        {/* Category and date */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
+
             <CategorySelector
               categories={categories || []}
               onChange={(categoryId) => {
-                if (categoryId) setValue("category", categoryId);
+                if (categoryId) {
+                  setValue("category", categoryId);
+                }
               }}
             />
           </div>
@@ -168,7 +217,11 @@ const ExpenseForm = ({ type, onSuccess }) => {
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                  {selectedDate ? (
+                    format(selectedDate, "PPP")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
@@ -179,29 +232,28 @@ const ExpenseForm = ({ type, onSuccess }) => {
                     setSelectedDate(date);
                     setValue("date", date);
                   }}
-                  className="rounded-lg border"
+                  initialFocus
                 />
               </PopoverContent>
             </Popover>
           </div>
         </div>
 
+        {/* Group selector (for group expenses) */}
         {type === "group" && (
           <div className="space-y-2">
             <Label>Group</Label>
             <GroupSelector
               onChange={(group) => {
+                // Only update if the group has changed to prevent loops
                 if (!selectedGroup || selectedGroup.id !== group.id) {
                   setSelectedGroup(group);
                   setValue("groupId", group.id);
-                  if (Array.isArray(group.members)) {
+
+                  // Update participants with the group members
+                  if (group.members && Array.isArray(group.members)) {
+                    // Set the participants once, don't re-set if they're the same
                     setParticipants(group.members);
-                    const payerInGroup = group.members.find(
-                      (m) => m.id === currentUser._id
-                    );
-                    if (payerInGroup) {
-                      setValue("paidByUserId", currentUser._id);
-                    }
                   }
                 }
               }}
@@ -214,20 +266,13 @@ const ExpenseForm = ({ type, onSuccess }) => {
           </div>
         )}
 
+        {/* Participants (for individual expenses) */}
         {type === "individual" && (
           <div className="space-y-2">
             <Label>Participants</Label>
             <ParticipantSelector
               participants={participants}
-              onParticipantsChange={(newParticipants) => {
-                setParticipants(newParticipants);
-                if (
-                  !newParticipants.find((p) => p.id === paidByUserId) &&
-                  currentUser
-                ) {
-                  setValue("paidByUserId", currentUser._id);
-                }
-              }}
+              onParticipantsChange={setParticipants}
             />
             {participants.length <= 1 && (
               <p className="text-xs text-amber-600">
@@ -237,8 +282,9 @@ const ExpenseForm = ({ type, onSuccess }) => {
           </div>
         )}
 
+        {/* Paid by selector */}
         <div className="space-y-2">
-          <Label>Paid By</Label>
+          <Label>Paid by</Label>
           <select
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             {...register("paidByUserId")}
@@ -257,8 +303,9 @@ const ExpenseForm = ({ type, onSuccess }) => {
           )}
         </div>
 
+        {/* Split type */}
         <div className="space-y-2">
-          <Label>Split Type</Label>
+          <Label>Split type</Label>
           <Tabs
             defaultValue="equal"
             onValueChange={(value) => setValue("splitType", value)}
@@ -277,7 +324,7 @@ const ExpenseForm = ({ type, onSuccess }) => {
                 amount={parseFloat(amountValue) || 0}
                 participants={participants}
                 paidByUserId={paidByUserId}
-                onSplitsChange={setSplits}
+                onSplitsChange={setSplits} // Use setSplits directly
               />
             </TabsContent>
             <TabsContent value="percentage" className="pt-4">
@@ -289,7 +336,7 @@ const ExpenseForm = ({ type, onSuccess }) => {
                 amount={parseFloat(amountValue) || 0}
                 participants={participants}
                 paidByUserId={paidByUserId}
-                onSplitsChange={setSplits}
+                onSplitsChange={setSplits} // Use setSplits directly
               />
             </TabsContent>
             <TabsContent value="exact" className="pt-4">
@@ -301,7 +348,7 @@ const ExpenseForm = ({ type, onSuccess }) => {
                 amount={parseFloat(amountValue) || 0}
                 participants={participants}
                 paidByUserId={paidByUserId}
-                onSplitsChange={setSplits}
+                onSplitsChange={setSplits} // Use setSplits directly
               />
             </TabsContent>
           </Tabs>
