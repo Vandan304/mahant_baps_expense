@@ -7,6 +7,7 @@ import { Badge } from "./ui/badge";
 
 const GroupMembers = ({ members }) => {
   const { data: currentUser } = useConvexQuery(api.users.getCurrentUser);
+
   if (!members || members.length === 0) {
     return (
       <div className="text-center py-4 text-muted-foreground">
@@ -14,24 +15,26 @@ const GroupMembers = ({ members }) => {
       </div>
     );
   }
+
   return (
     <div className="space-y-3">
       {members.map((member) => {
-        const iscurrentUser = member.id === currentUser?._id;
-        const isAdmin = member.role === "admin";
+        const isCurrentUser = member?.id === currentUser?._id;
+        const isAdmin = member?.role === "admin";
+        const memberName = member?.name || "Unknown";
+        const avatarFallback = memberName?.charAt?.(0) || "?";
+
         return (
-          <div key={member.id} className="flex items-center justify-between">
+          <div key={member?.id} className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={member.imageUrl} />
-                <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                <AvatarImage src={member?.imageUrl} />
+                <AvatarFallback>{avatarFallback}</AvatarFallback>
               </Avatar>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {member.name}
-                  </span>
-                  {iscurrentUser && (
+                  <span className="text-sm font-medium">{memberName}</span>
+                  {isCurrentUser && (
                     <Badge variant="outline" className="text-xs py-0 h-5">
                       You
                     </Badge>
