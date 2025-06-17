@@ -49,8 +49,67 @@ export const createSettlement = mutation({
 });
 
 export const getSettlementData = query({
-    args:{
-        entityType:v.string(),
-        entityId:v.string(),
+  args: {
+    entityType: v.string(),
+    entityId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const me = await ctx.runQuery(internal.users.getCurrentUser);
+    if (args.entityType === "user") {
+      const other = await ctx.db.get(args.entityId);
+      if (!other) {
+        throw new Error("User not found");
+      }
+      const myExpense = await ctx.db
+        .query("expenses")
+        .withIndex("by_user_and_group", (q) =>
+          q.eq("paidByUserId", me._id).eq("groupId", undefined)
+        )
+        .collect();
+      const otherUserExpenses = await ctx.db
+        .query("expenses")
+        .withIndex("by_user_and_group", (q) =>
+          q.eq("paidByUserId", other._id).eq("groupId", undefined)
+        )
+        .collect();
+      const expenses = [...myExpense, ...otherUserExpenses];
+      let owed = 0;
+      let owing = 0;
+      for (const exp of expenses) {
+        const involesMe =
+          exp.paidByUserId === me._id ||
+          exp.splits.some((s) => s.userId === me._id);
+        const involesThem =
+          exp.paidByUserId === other._id ||
+          exp.splits.some((s) => s.userId === other._id);
+        if (!involesMe || !involesThem) {
+          continue;
+        }
+        if (exp.paidByUserId === me._id) {
+          const split = exp.splits.find(
+            (s) => s.userId === other._id && !s.paid
+          );
+          if (split) {
+            owed += split.amount;
+          }
+        }
+        if (exp.paidByUserId === other._id) {
+          const split = exp.splits.find((s) => s.userId === me._id && !s.paid);
+        }
+      }
+      const mySettlement = await ctx.db
+        .query("settlements")
+        .withIndex("by_user_and_group", (q) =>
+          q.eq("paidByUserId", me._id).eq("groupId", undefined)
+        )
+        .collect();
+      const otherUserSettlements = await ctx.db
+        .query("settlements")
+        .withIndex("by_user_and_group", (q) =>
+          q.eq("paidByUserId", other._id).eq("groupId", undefined)
+        )
+        .collect();
+    } else if (args.entityType === "group") {
     }
+  },
 });
